@@ -76,7 +76,8 @@ final class MovieQuizViewController: UIViewController {
             message: (result.text),
             preferredStyle: .alert)
         
-        let action = UIAlertAction(title: result.buttonText, style: .default) { _ in
+        let action = UIAlertAction(title: result.buttonText, style: .default) { [weak self] _ in
+            guard let self = self else { return } //разворачиваем слабую ссылку
             // код, который сбрасывает игру и показывает первый вопрос
             self.currentQuestionIndex = 0 // 1
             
@@ -96,7 +97,8 @@ final class MovieQuizViewController: UIViewController {
         imageView.layer.borderColor = isCorrect ? UIColor.ypGreen.cgColor : UIColor.ypRed.cgColor//
         noButton.isEnabled = false
         yesButton.isEnabled = false
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            guard let self = self else { return } //разворачиваем слабую ссылку
             self.showNextQuestionOrResults()
             self.imageView.layer.borderColor = UIColor.clear.cgColor
             self.noButton.isEnabled = true
