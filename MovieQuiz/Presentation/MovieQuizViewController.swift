@@ -1,6 +1,6 @@
 import UIKit
 
-final class MovieQuizViewController: UIViewController {
+final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
     // MARK: - Lifecycle
     @IBOutlet private weak var imageView: UIImageView!
     @IBOutlet private weak var textLabel: UILabel!
@@ -13,20 +13,30 @@ final class MovieQuizViewController: UIViewController {
     // переменная со счётчиком правильных ответов, начальное значение закономерно 0
     private var currentQuestionIndex = 0
     private let questionsAmount: Int = 10
-    private let questionFactory: QuestionFactoryProtocol = QuestionFactory()
+    private var questionFactory: QuestionFactoryProtocol?
     private var currentQuestion: QuizQuestion?
     //массив вопросов
     
     // MARK: - Lifecycle
     
-    // константа с кнопкой для системного алерта
-    override func viewDidLoad() {
-        if let firstQuestion = questionFactory.requestNextQuestion() {
-            currentQuestion = firstQuestion
-            let viewModel = convert(model: firstQuestion)
-            show(quiz: viewModel)
+    // MARK: - QuestionFactoryDelegate
+    func didReceiveNextQuestion(question: QuizQuestion?) {
+        guard let question = question else {
+            return
         }
         
+        currentQuestion = question
+        let viewModel = convert(model: question)
+        DispatchQueue.main.async { [weak self] in
+            self?.show(quiz: viewModel)
+        }
+    }
+    // MARK: - QuestionFactoryDelegate
+    // константа с кнопкой для системного алерта
+    override func viewDidLoad() {
+        questionFactory = QuestionFactory(delegate: self)
+        
+        questionFactory?.requestNextQuestion()
         imageView.layer.masksToBounds = true // даём разрешение на рисование рамки
         imageView.layer.borderWidth = 8 // толщина рамки
         imageView.layer.cornerRadius = 20 // радиус скругления картинки
@@ -73,12 +83,7 @@ final class MovieQuizViewController: UIViewController {
             guard let self = self else { return } //разворачиваем слабую ссылку
             // код, который сбрасывает игру и показывает первый вопрос
             self.currentQuestionIndex = 0 // 1
-            if let firstQuestion = self.questionFactory.requestNextQuestion() {
-                self.currentQuestion = firstQuestion
-                let viewModel = self.convert(model: firstQuestion)
-                
-                self.show(quiz: viewModel)
-            }
+            self.questionFactory?.requestNextQuestion()
         }
         
         alert.addAction(action)
@@ -116,12 +121,7 @@ final class MovieQuizViewController: UIViewController {
             correctAnswers = 0
         } else {
             currentQuestionIndex += 1
-          if let nextQuestion = questionFactory.requestNextQuestion() {
-                currentQuestion = nextQuestion
-                let viewModel = convert(model: nextQuestion)
-                
-                show(quiz: viewModel)
-            }
+            questionFactory?.requestNextQuestion()
         }
     }
 }
