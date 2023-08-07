@@ -17,7 +17,7 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
     private var currentQuestion: QuizQuestion?
 
     private var alertPresener: AlertPresenterProtocol?
-
+    private var statisticService: StatisticService?
     
     // MARK: - Lifecycle
     
@@ -38,6 +38,7 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
     override func viewDidLoad() {
         alertPresener = AlertPresenter(delegate: self)
         questionFactory = QuestionFactory(delegate: self)
+        statisticService = StatisticServiceImplementation()
         
         questionFactory?.requestNextQuestion()
         imageView.layer.masksToBounds = true // даём разрешение на рисование рамки
@@ -95,11 +96,14 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
     // приватный метод, который содержит логику перехода в один из сценариев
     // метод ничего не принимает и ничего не возвращает
     private func showNextQuestionOrResults() {
-        if currentQuestionIndex == questionsAmount {
+        if currentQuestionIndex == questionsAmount-1 {
             // идём в состояние "Результат квиза"
-            let text = correctAnswers == questionsAmount ?
-            "Поздравляем, Вы ответили на 10 из 10!" :
-            "Вы ответили на \(correctAnswers) из 10, попробуйте ещё раз!"
+            statisticService?.store(correct: correctAnswers, total: questionsAmount)
+            
+            let text = /*correctAnswers == questionsAmount ?
+            "Поздравляем, Вы ответили на 10 из 10!" :*/
+            "Ваш результат: \(correctAnswers)/\(questionsAmount)\nКоличество сыгранных квизов: \(statisticService?.gamesCount ?? 0)\nРекорд \(statisticService?.bestGame.correct ?? 0)/\(statisticService?.bestGame.total ?? 0) (\(statisticService?.bestGame.date.dateTimeString ?? Date().dateTimeString))\nСредняя точность \(String(format: "%.2f", statisticService?.totalAccuracy ?? 0))%"
+            
             let viewModel = AlertModel(
                 title: "Этот раунд окончен!",
                 message: text,
@@ -113,6 +117,7 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
             alertPresener?.show(model: viewModel)
             correctAnswers = 0
         } else {
+            //следующий вопрос
             currentQuestionIndex += 1
             questionFactory?.requestNextQuestion()
         }
