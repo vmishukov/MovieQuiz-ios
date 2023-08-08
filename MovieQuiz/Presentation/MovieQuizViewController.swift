@@ -44,6 +44,7 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
         imageView.layer.masksToBounds = true // даём разрешение на рисование рамки
         imageView.layer.borderWidth = 8 // толщина рамки
         imageView.layer.cornerRadius = 20 // радиус скругления картинки
+        imageView.layer.borderColor = UIColor.clear.cgColor
         super.viewDidLoad()
     }
     // метод вызывается, когда пользователь нажимает на кнопку "Нет"
@@ -100,10 +101,15 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
             // идём в состояние "Результат квиза"
             statisticService?.store(correct: correctAnswers, total: questionsAmount)
             
+            let gamesCount = statisticService?.gamesCount ?? 0
+            let correct = statisticService?.bestGame.correct ?? 0
+            let total = statisticService?.bestGame.total ?? 0
+            let date = statisticService?.bestGame.date.dateTimeString ?? Date().dateTimeString
+            let totalAccuracy = String(format: "%.2f", statisticService?.totalAccuracy ?? 0)
+            
             let text = /*correctAnswers == questionsAmount ?
             "Поздравляем, Вы ответили на 10 из 10!" :*/
-            "Ваш результат: \(correctAnswers)/\(questionsAmount)\nКоличество сыгранных квизов: \(statisticService?.gamesCount ?? 0)\nРекорд \(statisticService?.bestGame.correct ?? 0)/\(statisticService?.bestGame.total ?? 0) (\(statisticService?.bestGame.date.dateTimeString ?? Date().dateTimeString))\nСредняя точность \(String(format: "%.2f", statisticService?.totalAccuracy ?? 0))%"
-            
+            "Ваш результат: \(correctAnswers)/\(questionsAmount)\nКоличество сыгранных квизов: \(gamesCount)\nРекорд \(correct)/\(total) (\(date))\nСредняя точность \(totalAccuracy)%"
             let viewModel = AlertModel(
                 title: "Этот раунд окончен!",
                 message: text,
