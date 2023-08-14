@@ -7,6 +7,7 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
     @IBOutlet private weak var counterLabel: UILabel!
     @IBOutlet private weak var noButton: UIButton!
     @IBOutlet private weak var yesButton: UIButton!
+    @IBOutlet weak var activityIndicator: UIActivityIndicatorView!
     // переменная с индексом текущего вопроса, начальное значение 0
     private var correctAnswers = 0
     // (по этому индексу будем искать вопрос в массиве, где индекс первого элемента 0, а не 1)
@@ -17,9 +18,25 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
     private var currentQuestion: QuizQuestion?
 
     private var alertPresener: AlertPresenterProtocol?
-    private var statisticService: StatisticService?
-    
+    private var statisticService: StatisticService?    
     // MARK: - Lifecycle
+    
+  
+    // константа с кнопкой для системного алерта
+    override func viewDidLoad() {
+        alertPresener = AlertPresenter(delegate: self)
+        questionFactory = QuestionFactory(moviesLoader: MoviesLoader(), delegate: self)
+        statisticService = StatisticServiceImplementation()
+        
+        showLoadingIndicator()
+        questionFactory?.loadData()
+        
+        imageView.layer.masksToBounds = true // даём разрешение на рисование рамки
+        imageView.layer.borderWidth = 8 // толщина рамки
+        imageView.layer.cornerRadius = 20 // радиус скругления картинки
+        imageView.layer.borderColor = UIColor.clear.cgColor
+        super.viewDidLoad()
+    }
     
     // MARK: - QuestionFactoryDelegate
     func didReceiveNextQuestion(question: QuizQuestion?) {
@@ -33,27 +50,54 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
             self?.show(quiz: viewModel)
         }
     }
-    // MARK: - QuestionFactoryDelegate
-    // константа с кнопкой для системного алерта
-    override func viewDidLoad() {
-        alertPresener = AlertPresenter(delegate: self)
-        questionFactory = QuestionFactory(delegate: self)
-        statisticService = StatisticServiceImplementation()
-        
+    func didLoadDataFromServer() {
+        hideLoadingIndicator() // скрываем индикатор загрузки
         questionFactory?.requestNextQuestion()
-        imageView.layer.masksToBounds = true // даём разрешение на рисование рамки
-        imageView.layer.borderWidth = 8 // толщина рамки
-        imageView.layer.cornerRadius = 20 // радиус скругления картинки
-        imageView.layer.borderColor = UIColor.clear.cgColor
-        super.viewDidLoad()
     }
+    
+    func didFailToLoadData(with error: Error) {
+        showNetworkError(message: error.localizedDescription) // возьмём в качестве сообщения описание ошибки
+    }
+    
+    // MARK: - QuestionFactoryDelegate
+    private func showLoadingIndicator() {
+        activityIndicator.isHidden = false // говорим, что индикатор загрузки не скрыт
+        activityIndicator.startAnimating() // включаем анимацию
+    }
+    
+    private func hideLoadingIndicator() {
+        activityIndicator.isHidden = true // говорим, что индикатор загрузки скрыт
+        activityIndicator.stopAnimating() // выключаем анимацию
+    }
+    
+    private func showNetworkError(message: String) {
+        hideLoadingIndicator() // скрываем индикатор загрузки
+        
+        let viewModel = AlertModel(
+            title: "Ошибка",
+            message: message,
+            buttonText: "Попробовать ещё раз",
+            completion:  {[weak self] in
+                guard let self = self else { return }
+
+                self.currentQuestionIndex = 0
+                self.correctAnswers = 0
+                
+                self.questionFactory?.requestNextQuestion()
+            })
+        
+        alertPresener?.show(model: viewModel)
+        // создайте и покажите алерт
+    }
+    
+    
     // метод вызывается, когда пользователь нажимает на кнопку "Нет"
     @IBAction private func noButtonClicked(_ sender: Any) {
         guard let currentQuestion = currentQuestion else {
             return
         }
         let givenAnswer = false
-        showAnswerResult(isCorrect: givenAnswer == currentQuestion.corrcetAnswer)
+        showAnswerResult(isCorrect: givenAnswer == currentQuestion.correctAnswer)
     }
     // метод вызывается, когда пользователь нажимает на кнопку "Да"
     @IBAction private func yesButtonClicked(_ sender: Any) {
@@ -61,12 +105,12 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
             return
         }
         let givenAnswer = true
-        showAnswerResult(isCorrect: givenAnswer == currentQuestion.corrcetAnswer)
+        showAnswerResult(isCorrect: givenAnswer == currentQuestion.correctAnswer)
     }
     // приватный метод конвертации, который принимает моковый вопрос и возвращает вью модель для главного экрана
     private func convert (model: QuizQuestion) -> QuizStepViewModel {
         return QuizStepViewModel(
-            image: UIImage(named: model.image) ??  UIImage(),
+            image: UIImage(data: model.image) ??  UIImage(),
             question: model.text,
             questionNumber:"\(currentQuestionIndex+1)/\(questionsAmount)")
     }
