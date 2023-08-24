@@ -20,31 +20,11 @@ protocol MovieQuizViewControllerProtocol: AnyObject {
 }
 
 
-final class MovieQuizPresenter: QuestionFactoryDelegate, MovieQuizViewControllerProtocol {
-    //Эти функции нужны чобы работал тест
-    func show(quiz step: QuizStepViewModel) {
-    }
-    
-    func showAlert(viewModel: AlertModel) {
-    }
-    
-    func highlightImageBorder(isCorrectAnswer: Bool) {
-    }
-    
-    func showLoadingIndicator() {
-    }
-    
-    func hideLoadingIndicator() {
-    }
-    
-    func showNetworkError(message: String) {
-    }
-    func nextQuestionClearence() {}
-    //Эти функции нужны чобы работал тест
+final class MovieQuizPresenter: QuestionFactoryDelegate {
+
     private var statisticService: StatisticService!
     private var questionFactory: QuestionFactoryProtocol?
     private weak var viewController: MovieQuizViewControllerProtocol?
-    
     private var currentQuestion: QuizQuestion?
     private let questionsAmount: Int = 10
     private var currentQuestionIndex: Int = 0
