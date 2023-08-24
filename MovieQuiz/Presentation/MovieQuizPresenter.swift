@@ -7,24 +7,55 @@
 
 import UIKit
 
-final class MovieQuizPresenter: QuestionFactoryDelegate {
-
+protocol MovieQuizViewControllerProtocol: AnyObject {
+    func show(quiz step: QuizStepViewModel)
+    func showAlert(viewModel: AlertModel)
     
-    let questionsAmount: Int = 10
-    private var currentQuestionIndex: Int = 0
-    weak var viewController: MovieQuizViewController?
-    var currentQuestion: QuizQuestion?
+    func highlightImageBorder(isCorrectAnswer: Bool)
+    func nextQuestionClearence()
+    func showLoadingIndicator()
+    func hideLoadingIndicator()
     
-    var correctAnswers: Int = 0
+    func showNetworkError(message: String)
+}
 
-    var statisticService: StatisticService?
+
+final class MovieQuizPresenter: QuestionFactoryDelegate, MovieQuizViewControllerProtocol {
+    //Эти функции нужны чобы работал тест
+    func show(quiz step: QuizStepViewModel) {
+    }
+    
+    func showAlert(viewModel: AlertModel) {
+    }
+    
+    func highlightImageBorder(isCorrectAnswer: Bool) {
+    }
+    
+    func showLoadingIndicator() {
+    }
+    
+    func hideLoadingIndicator() {
+    }
+    
+    func showNetworkError(message: String) {
+    }
+    func nextQuestionClearence() {}
+    //Эти функции нужны чобы работал тест
+    private var statisticService: StatisticService!
     private var questionFactory: QuestionFactoryProtocol?
+    private weak var viewController: MovieQuizViewControllerProtocol?
     
-    init(viewController: MovieQuizViewController) {
+    private var currentQuestion: QuizQuestion?
+    private let questionsAmount: Int = 10
+    private var currentQuestionIndex: Int = 0
+    private var correctAnswers: Int = 0
+    
+    
+    
+    init(viewController: MovieQuizViewControllerProtocol) {
         self.viewController = viewController
-        
-        questionFactory = QuestionFactory(moviesLoader: MoviesLoader(), delegate: self)
         statisticService = StatisticServiceImplementation()
+        questionFactory = QuestionFactory(moviesLoader: MoviesLoader(), delegate: self)
         questionFactory?.loadData()
         viewController.showLoadingIndicator()
     }
@@ -68,15 +99,7 @@ final class MovieQuizPresenter: QuestionFactoryDelegate {
         didAnswer(isYes: false)
     }
     
-    private func didAnswer(isYes: Bool) {
-        guard let currentQuestion = currentQuestion else {
-            return
-        }
-        
-        let givenAnswer = isYes
-        
-        viewController?.showAnswerResult(isCorrect: givenAnswer == currentQuestion.correctAnswer)
-    }
+    
     
     func didAnswer(isCorrectAnswer: Bool){
         if isCorrectAnswer { // 1
@@ -93,24 +116,48 @@ final class MovieQuizPresenter: QuestionFactoryDelegate {
         currentQuestion = question
         let viewModel = convert(model: question)
         DispatchQueue.main.async { [weak self] in
-        self?.viewController?.show(quiz: viewModel)
+            self?.viewController?.show(quiz: viewModel)
         }
     }
     
-    func showNextQuestionOrResults() {
+    private func didAnswer(isYes: Bool) {
+        guard let currentQuestion = currentQuestion else {
+            return
+        }
+        
+        let givenAnswer = isYes
+        
+        proceedWithAnswer(isCorrect: givenAnswer == currentQuestion.correctAnswer)
+    }
+    
+    private func proceedWithAnswer(isCorrect: Bool) {
+        didAnswer(isCorrectAnswer: isCorrect)
+        
+        viewController?.highlightImageBorder(isCorrectAnswer: isCorrect)
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            guard let self = self else { return } //разворачиваем слабую ссылку
+            self.proceedToNextQuestionOrResults()
+            viewController?.nextQuestionClearence()
+            
+        }
+    }
+    
+    private func proceedToNextQuestionOrResults() {
         if self.isLastQuestion(){
             // идём в состояние "Результат квиза"
             self.statisticService?.store(correct: self.correctAnswers, total: self.questionsAmount)
             
+            //Не вынес создание сообщения в отдельную функцию по причине KISS/YAGNI
             let gamesCount = self.statisticService?.gamesCount ?? 0
             let correct = self.statisticService?.bestGame.correct ?? 0
             let total = self.statisticService?.bestGame.total ?? 0
             let date = self.statisticService?.bestGame.date.dateTimeString ?? Date().dateTimeString
             let totalAccuracy = String(format: "%.2f", self.statisticService?.totalAccuracy ?? 0)
             
-            let text = /*correctAnswers == questionsAmount ?
-                        "Поздравляем, Вы ответили на 10 из 10!" :*/
+            let text =
             "Ваш результат: \(self.correctAnswers)/\(self.questionsAmount)\nКоличество сыгранных квизов: \(gamesCount)\nРекорд \(correct)/\(total) (\(date))\nСредняя точность \(totalAccuracy)%"
+            //Не вынес создание сообщения в отдельную функцию по причине KISS/YAGNI
             let viewModel = AlertModel(
                 title: "Этот раунд окончен!",
                 message: text,
@@ -127,5 +174,4 @@ final class MovieQuizPresenter: QuestionFactoryDelegate {
             questionFactory?.requestNextQuestion()
         }
     }
-    
 }
